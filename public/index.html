@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F8FAFC">
+  <title>Grade Calculator</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- Pick the theme before first paint so there is no flash: saved choice, else the device setting. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+    } catch (e) { /* storage blocked: keep the light default */ }
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg" id="bg" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/" aria-label="Grade Calculator home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6 4 4 6-7"/></svg>
+        </span>
+        <span class="brand-name">Grade<span>Calc</span></span>
+      </a>
+
+      <div class="topbar-actions">
+        <button id="account-btn" class="chip" type="button" hidden aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span id="whoami" class="whoami"></span>
+        </button>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch to dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="error" class="error" role="alert"></p>
+
+    <!-- Shown when logged out -->
+    <section id="auth" class="panel auth" hidden>
+      <h1 class="auth-title">Know exactly what you need.</h1>
+      <p class="muted">Track every grade, see where you stand, and find the score that gets you to your target.</p>
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button type="button" id="tab-login" role="tab" aria-selected="true">Log in</button>
+        <button type="button" id="tab-register" role="tab" aria-selected="false">Create account</button>
+      </div>
+      <form id="auth-form">
+        <label class="field"><span>Username</span>
+          <input name="username" autocomplete="username" maxlength="30" required>
+        </label>
+        <label class="field"><span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" maxlength="200" required>
+        </label>
+        <button type="submit" id="auth-submit" class="btn primary">Log in</button>
+      </form>
+      <p class="muted small">Your subjects are private to your account. Passwords are stored hashed, never as plain text.</p>
+    </section>
+
+    <!-- Shown when logged in -->
+    <div id="app" hidden>
+      <p id="print-meta" class="print-only"></p>
+
+      <section class="hero">
+        <h1>Your grades, <span class="hl">at a glance</span></h1>
+        <p class="muted">Add a subject, list its graded components with their weights, and enter scores as you get them. You'll see your current grade, your semester GPA, and exactly what you need on the rest to hit your target.</p>
+      </section>
+
+      <form id="subject-form" class="panel add-subject" autocomplete="off">
+        <h2 class="panel-title">Add a subject</h2>
+        <div class="add-subject-fields">
+          <label class="field grow"><span>Subject</span>
+            <input name="name" placeholder="e.g. Calculus 1" maxlength="100" required>
+          </label>
+          <label class="field"><span>Units</span>
+            <input name="units" type="number" inputmode="decimal" min="0.1" max="30" step="any" value="3" required>
+          </label>
+          <label class="field"><span>Target %</span>
+            <input name="target" type="number" inputmode="decimal" min="0" max="100" step="any" value="80" required>
+          </label>
+          <button type="submit" class="btn primary">Add subject</button>
+        </div>
+      </form>
+
+      <div class="toolbar">
+        <label class="field scale-picker"><span>Show grades as</span>
+          <select id="scale">
+            <option value="percent">Percentage</option>
+            <option value="us">Letter / GPA (4.0)</option>
+            <option value="ph">1.0 – 5.0 scale</option>
+          </select>
+        </label>
+        <div class="toolbar-actions">
+          <button id="export-csv" class="btn" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            Export CSV
+          </button>
+          <button id="print-btn" class="btn" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z"/></svg>
+            Print
+          </button>
+        </div>
+      </div>
+
+      <section id="semester" class="panel semester" aria-labelledby="semester-title" hidden>
+        <h2 id="semester-title" class="panel-title">Semester overview</h2>
+        <div id="semester-stats" class="stats"></div>
+        <p id="semester-note" class="note"></p>
+      </section>
+
+      <section id="subjects" aria-label="Subjects"></section>
+      <p id="empty" class="empty" hidden>
+        <span class="empty-art" aria-hidden="true"></span>
+        No subjects yet. Add your first one above.
+      </p>
+    </div>
+  </main>
+
+  <!-- Account settings -->
+  <dialog id="account-dialog" aria-labelledby="account-title">
+    <div class="dialog-head">
+      <h2 id="account-title">Account</h2>
+      <button id="account-close" class="icon-btn" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <p class="muted">Signed in as <strong id="dlg-user"></strong></p>
+
+    <form id="password-form" class="dialog-section" autocomplete="off">
+      <h3>Change password</h3>
+      <label class="field"><span>Current password</span>
+        <input name="currentPassword" type="password" autocomplete="current-password" maxlength="200" required>
+      </label>
+      <label class="field"><span>New password (8+ characters)</span>
+        <input name="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="200" required>
+      </label>
+      <label class="field"><span>Confirm new password</span>
+        <input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="200" required>
+      </label>
+      <button type="submit" class="btn primary">Update password</button>
+      <p id="password-msg" class="form-msg" role="status"></p>
+    </form>
+
+    <div class="dialog-section">
+      <button id="logout" class="btn" type="button">Log out</button>
+    </div>
+
+    <form id="delete-form" class="dialog-section danger-zone" autocomplete="off">
+      <h3>Delete account</h3>
+      <p class="muted small">This permanently deletes your account, subjects and grades. It can't be undone.</p>
+      <label class="field"><span>Enter your password to confirm</span>
+        <input name="password" type="password" autocomplete="current-password" maxlength="200" required>
+      </label>
+      <button type="submit" class="btn danger">Delete my account</button>
+      <p id="delete-msg" class="form-msg" role="status"></p>
+    </form>
+  </dialog>
+
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
